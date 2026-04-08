@@ -14,7 +14,7 @@ jobs:
     name: CodeRabbit Review
     steps:
       - name: Run CodeRabbit
-        uses: coderabbit-ai/github-action@v2.0.0
+        uses: coderabbitai/ai-pr-reviewer@1.16.2
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           # Optional: CodeRabbit API key for advanced features

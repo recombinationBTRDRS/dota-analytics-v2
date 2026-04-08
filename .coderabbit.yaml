@@ -195,34 +195,30 @@
 # КОНФІГУРАЦІЯ НИЖЧЕ (YAML):
 # ================================================================================
 
-language: python
-framework: fastapi
+reviews:
+  auto_review:
+    enabled: true
+    auto_review: true
+    comment_density: 3
+    fail_on_violations: false
 
-review:
-  enabled: true
-  auto_review: true
-  comment_density: 3
-  fail_on_violations: false
-
-include_patterns:
-  - "**/*.py"
-  - "**/*.ts"
-  - "**/*.tsx"
-  - "**/*.yaml"
-  - "**/*.yml"
-  - "Dockerfile"
-  - "docker-compose.yaml"
-  - "pyproject.toml"
-
-exclude_patterns:
-  - "**/__pycache__/**"
-  - "**/node_modules/**"
-  - "**/*.pyc"
-  - "*.egg-info/**"
-  - ".venv/**"
-  - ".git/**"
-  - "dist/**"
-  - "build/**"
+  path_filters:
+    - "**/*.py"
+    - "**/*.ts"
+    - "**/*.tsx"
+    - "**/*.yaml"
+    - "**/*.yml"
+    - "Dockerfile"
+    - "docker-compose.yaml"
+    - "pyproject.toml"
+    - "!**/__pycache__/**"
+    - "!**/node_modules/**"
+    - "!**/*.pyc"
+    - "!*.egg-info/**"
+    - "!.venv/**"
+    - "!.git/**"
+    - "!dist/**"
+    - "!build/**"
 
 python:
   check_types: true

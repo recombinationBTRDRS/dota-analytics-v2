@@ -13,9 +13,10 @@ jobs:
     runs-on: ubuntu-latest
     name: CodeRabbit Review
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
       - name: Run CodeRabbit
-        uses: coderabbitai/ai-pr-reviewer@1.16.2
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          # Optional: CodeRabbit API key for advanced features
-          # coderabbit-token: ${{ secrets.CODERABBIT_TOKEN }}
+        uses: coderabbitai/ai-pr-reviewer@latest
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

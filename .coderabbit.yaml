@@ -1,14 +1,12 @@
 # ================================================================================
-# 🤖 CODERABBIT CONFIGURATION
+# 🤖 CODERABBIT CONFIGURATION (.coderabbit.yaml)
 # ================================================================================
-# Цей файл налаштовує автоматичний code review через CodeRabbit AI
-# для всіх Pull Requests в цей репозиторій.
+# Офіційна схема: https://coderabbit.ai/integrations/schema.v2.json
+# Документація: https://docs.coderabbit.ai/
 #
-# 📚 Документація: https://docs.coderabbit.ai/
-# 🔗 GitHub App: https://github.com/apps/coderabbit-ai
-#
+# ⚠️ ВАЖЛИВО: Цей файл СТРОГО дотримується офіційної схеми CodeRabbit
 # ================================================================================
-# ІНСТРУКЦІЇ ВИКОРИСТАННЯ:
+# ИНСТРУКЦИИ КОРИСТУВАННЯ:
 # ================================================================================
 #
 # 1. ВСТАНОВЛЕННЯ CodeRabbit:
@@ -26,7 +24,7 @@
 #       
 #    b) КОДИШ свою task
 #    
-#    c) КОМІТИ за конвенцією (бачи внизу):
+#    c) КОМІТИ за конвенцією:
 #       git add .
 #       git commit -m "feat(1.2): pydantic config management
 #       
@@ -39,19 +37,13 @@
 #    
 #    e) На GitHub ВІДКРИЄТЬСЯ Pull Request
 #    
-#    f) CodeRabbit АВТОМАТИЧНО review'ить код:
-#       ✅ Архітектура (SOLID, patterns)
-#       ✅ Якість коду
-#       ✅ Тести + coverage
-#       ✅ Безпека + performance
-#       ✅ REST API стандарти
-#       ✅ FastAPI best practices
+#    f) CodeRabbit АВТОМАТИЧНО review'ить код
 #    
 #    g) ТИ дивишся коментарі CodeRabbit
 #       - Вносиш зміни якщо потрібно
 #       - Пушиш нові коміти
 #    
-#    h) Коли ВСЕ OK → натискаєш "Squash and merge" в GitHub
+#    h) Коли ВСЕ OK → натискаєш "Squash and merge"
 #
 # 3. BRANCH NAMING CONVENTION:
 #    feat/epic-N-task-N-M-description
@@ -59,405 +51,136 @@
 #    docs/what-documented
 #    test/what-tested
 #    refactor/what-refactored
-#    
-#    Приклади:
-#    - feat/epic-1-task-1-1-bootstrap
-#    - feat/epic-1-task-1-2-config
-#    - fix/mongodb-connection-timeout
-#    - test/draft-advisor-unit-tests
-#    - docs/api-endpoints-swagger
 #
-# 4. COMMIT MESSAGE CONVENTION (ДУЖЕ ВАЖЛИВО!):
+# 4. COMMIT MESSAGE CONVENTION:
 #    feat(EPIC.TASK): short description
 #    
 #    - Detailed change 1
 #    - Detailed change 2
 #    - Tests added
-#    - Reference to docs if needed
-#    
-#    Приклади:
-#    feat(1.1): project bootstrap
-#    feat(1.2): pydantic-settings config management
-#    fix(1.2): handle missing .env file gracefully
-#    test(1.2): add config loading tests
-#    refactor(1.2): extract database config to separate file
-#    docs(1.1): update README with setup instructions
-#
-# 5. PULL REQUEST FORMAT:
-#    
-#    Title: [EPIC-1][TASK-1.2] Pydantic config management
-#    
-#    Description:
-#    ## Що зроблено?
-#    - Implement Settings class with pydantic-settings
-#    - Add .env.example with all variables
-#    - Add get_settings() for dependency injection
-#    
-#    ## Чому?
-#    Дотримання Task 1.2 з TZ (DOTA2_ANALYTICS_v2_TZ.md)
-#    
-#    ## Як тестував?
-#    - pytest tests/test_config.py
-#    - Manual check: python -c "from app.config import get_settings; print(get_settings())"
-#    
-#    ## Чеклист перед review:
-#    - [x] Тести пройшли
-#    - [x] Type hints на місці
-#    - [x] Docstrings написані
-#    - [x] Max line 100 chars
-#    - [x] SOLID дотримується
-#    - [x] Error handling OK
-#    - [x] Коміт messages чітки
 #
 # ================================================================================
-# ЧТО CodeRabbit БУДЕТ ПЕРЕВІРЯТИ:
-# ================================================================================
-#
-# 🏗️ АРХІТЕКТУРА:
-#    ✅ Мікросервісна ізоляція (кожен на своєму порту)
-#    ✅ Layered architecture (routers → services → repos → db)
-#    ✅ Dependency injection паттерн
-#    ✅ Repository pattern для DB access
-#    ✅ Правильна організація файлів
-#
-# 🔐 SOLID ПРИНЦИПИ:
-#    ✅ Single Responsibility (один клас = одна відповідальність)
-#    ✅ Open/Closed (розширюємо без змін старого)
-#    ✅ Liskov Substitution (правильна спадкоємість)
-#    ✅ Interface Segregation (малі інтерфейси)
-#    ✅ Dependency Inversion (залежимо від abstraction)
-#
-# ✨ КОД ЯКІСТЬ:
-#    ✅ Type hints (на всіх функціях)
-#    ✅ Docstrings (на всіх публічних методах)
-#    ✅ Naming conventions (snake_case functions, PascalCase classes)
-#    ✅ Max line length = 100 chars
-#    ✅ Max function length = 50 lines
-#    ✅ No unused imports
-#    ✅ No code duplication
-#
-# 🧪 ТЕСТИ:
-#    ✅ Unit тести для нового коду
-#    ✅ Test coverage >= 75% для нових файлів
-#    ✅ Meaningful assertions (не просто assert True)
-#    ✅ Test naming convention (test_* functions)
-#    ✅ Мок external dependencies (DB, HTTP, etc)
-#
-# 📚 ДОКУМЕНТАЦІЯ:
-#    ✅ Docstrings на публічних функціях
-#    ✅ Type hints на параметрах
-#    ✅ Return type hints
-#    ✅ Docstring style = Google (""" line 1
-#       
-#       Line 2 explanation
-#       
-#       Args:
-#           param: description
-#       
-#       Returns:
-#           description
-#       """)
-#
-# 🔒 БЕЗПЕКА:
-#    ✅ Нема hardcoded secrets
-#    ✅ Нема SQL injection vulnerability
-#    ✅ Правильна error handling
-#    ✅ Нема sensitive data в logs
-#
-# ⚡ PERFORMANCE:
-#    ✅ Async/await використання (де потрібно)
-#    ✅ Нема N+1 queries
-#    ✅ Нема unnecessary computations
-#    ✅ Правильна indexing у БД
-#
-# 🌐 REST API СТАНДАРТИ (FastAPI):
-#    ✅ Resource-oriented endpoints (GET /heroes, не GET /get-heroes)
-#    ✅ Правильні HTTP methods (GET, POST, PUT, DELETE)
-#    ✅ Правильні status codes (200, 201, 400, 404, 500)
-#    ✅ Response models (Pydantic schemas)
-#    ✅ Request validation
-#    ✅ Error response format
-#    ✅ API versioning (/api/v1/*)
-#
-# 🔧 FastAPI BEST PRACTICES:
-#    ✅ Dependency injection (Depends())
-#    ✅ Error handlers (@app.exception_handler)
-#    ✅ Middleware (CORS, logging)
-#    ✅ Lifespan events (startup/shutdown)
-#    ✅ OpenAPI documentation
-#
-# 🐳 DOCKER / DEPLOYMENT:
-#    ✅ Dockerfile best practices
-#    ✅ docker-compose для локального dev
-#    ✅ Environment variables у .env
-#
-# ================================================================================
-# КОНФІГУРАЦІЯ НИЖЧЕ (YAML):
+# YAML SCHEMA (офіційна версія):
 # ================================================================================
 
+# Основні налаштування review
 reviews:
   auto_review:
     enabled: true
-    auto_review: true
-    comment_density: 3
-    fail_on_violations: false
+    auto_incremental_review: true
+    auto_pause_after_reviewed_commits: 5
+    drafts: false
 
-  path_filters:
-    - "**/*.py"
-    - "**/*.ts"
-    - "**/*.tsx"
-    - "**/*.yaml"
-    - "**/*.yml"
-    - "Dockerfile"
-    - "docker-compose.yaml"
-    - "pyproject.toml"
-    - "!**/__pycache__/**"
-    - "!**/node_modules/**"
-    - "!**/*.pyc"
-    - "!*.egg-info/**"
-    - "!.venv/**"
-    - "!.git/**"
-    - "!dist/**"
-    - "!build/**"
+  # Інструкції для специфічних шляхів
+  path_instructions:
+    - path: "**/*.py"
+      instructions: |
+        # Python Code Review
+        
+        Check for:
+        - ✅ Type hints on all functions
+        - ✅ Docstrings (Google style)
+        - ✅ SOLID principles
+        - ✅ No unused imports
+        - ✅ Max line length = 100
+        - ✅ Max function length = 50 lines
+        - ✅ Proper error handling
+        - ✅ Async/await usage
+        - ✅ Pydantic validation where needed
+        
+        Architecture layers:
+        - routers/ → handles HTTP
+        - services/ → business logic
+        - repositories/ → DB access
+        - db/ → connection management
+        - config.py → settings
+    
+    - path: "**/*test*.py"
+      instructions: |
+        # Python Tests Review
+        
+        Check for:
+        - ✅ Test coverage >= 75%
+        - ✅ Meaningful test names
+        - ✅ Meaningful assertions
+        - ✅ Mock external dependencies
+        - ✅ No hardcoded values
+        - ✅ Test isolation
+    
+    - path: "**/routers/**/*.py"
+      instructions: |
+        # FastAPI Routers Review
+        
+        Check for:
+        - ✅ Resource-oriented endpoints (GET /heroes, not /get-heroes)
+        - ✅ Correct HTTP methods (GET, POST, PUT, DELETE)
+        - ✅ Correct status codes (200, 201, 400, 404, 500)
+        - ✅ Response models (Pydantic)
+        - ✅ Request validation
+        - ✅ Dependency injection (Depends())
+        - ✅ Error handlers
+        - ✅ API versioning (/api/v1/*)
+    
+    - path: "Dockerfile"
+      instructions: |
+        # Docker Review
+        
+        Check for:
+        - ✅ Multi-stage builds if applicable
+        - ✅ .dockerignore present
+        - ✅ Non-root user
+        - ✅ Health check endpoint
+        - ✅ Proper layer ordering
+    
+    - path: "docker-compose.yaml"
+      instructions: |
+        # Docker Compose Review
+        
+        Check for:
+        - ✅ Service isolation
+        - ✅ Environment variables
+        - ✅ Volume mounting
+        - ✅ Network configuration
+        - ✅ Health checks
+    
+    - path: "pyproject.toml"
+      instructions: |
+        # Poetry Configuration Review
+        
+        Check for:
+        - ✅ Correct dependency groups (main vs dev)
+        - ✅ Python version constraints
+        - ✅ Build system configured
+        - ✅ Tool configurations present
 
-python:
-  check_types: true
-  check_docstrings: true
-  docstring_style: google
-  min_coverage: 80
+# Language settings
+language: python
+tone_instructions: |
+  Be constructive and educational. Point to best practices.
+  Provide examples when possible. Be encouraging.
 
-focus_areas:
-  - architecture
-  - best_practices
-  - error_handling
-  - performance
-  - security
-  - testing
-  - solid_principles
-  - rest_api_design
-  - fastapi_patterns
-
-quality_checks:
-  solid:
-    enabled: true
-    check_single_responsibility: true
-    check_open_closed: true
-    check_dependency_inversion: true
-  
-  design_patterns:
-    enabled: true
-  
-  security:
-    enabled: true
-    check_sql_injection: true
-    check_hardcoded_secrets: true
-    check_insecure_dependencies: true
-  
-  performance:
-    enabled: true
-    check_n_plus_one: true
-    check_unused_imports: true
-    check_unreachable_code: true
-  
-  duplication:
-    enabled: true
-    min_lines: 5
-
-testing:
-  require_tests: true
-  min_coverage_new_files: 75
-  check_test_quality: true
-  check_meaningful_assertions: true
-
-documentation:
-  require_docstrings: true
-  require_type_hints: true
-  check_readme_updates: true
-
-ai:
-  model: claude
-
-severity:
-  critical:
-    - security_vulnerability
-    - sql_injection
-    - hardcoded_secrets
-    - infinite_loop
-  
-  high:
-    - missing_error_handling
-    - unhandled_exception
-    - type_error
-    - performance_issue
-    - solid_violation
-  
-  medium:
-    - code_smell
-    - missing_docstring
-    - missing_type_hint
-    - test_coverage_low
-    - improper_error_response
-  
-  low:
-    - naming_convention
-    - import_order
-    - line_length
-    - trailing_whitespace
-
-comments:
-  inline: true
-  group_by_category: true
-  include_suggestions: true
-  ask_questions: true
-
-team:
-  naming_conventions:
-    functions: snake_case
-    classes: PascalCase
-    constants: UPPER_SNAKE_CASE
-    async_functions: snake_case
-  
-  max_line_length: 100
-  max_function_length: 50
-  max_complexity: 10
-
-architecture:
-  check_layering: true
-  
-  layers:
-    - name: "routes"
-      pattern: "**/routers/**/*.py"
-    - name: "services"
-      pattern: "**/services/**/*.py"
-    - name: "repositories"
-      pattern: "**/repositories/**/*.py"
-    - name: "domain"
-      pattern: "**/domain/**/*.py"
-    - name: "db"
-      pattern: "**/db/**/*.py"
-    - name: "config"
-      pattern: "**/config.py"
-  
-  check_dependencies: true
-
-fastapi:
-  enabled: true
-  check_status_codes: true
-  check_response_models: true
-  check_request_validation: true
-  check_dependency_injection: true
-  check_error_handlers: true
-  check_lifespan_events: true
-  check_cors_configuration: true
-
-microservices:
-  enabled: true
-  check_isolation: true
-  check_async_operations: true
-  check_event_handling: true
-  check_port_isolation: true
-
-database:
-  enabled: true
-  check_sql_injection: true
-  check_connection_pooling: true
-  check_transactions: true
-
-solid_enforcement:
-  srp:
-    enabled: true
-    max_responsibilities: 1
-  
-  ocp:
-    enabled: true
-    check_extensibility: true
-  
-  lsp:
-    enabled: true
-  
-  isp:
-    enabled: true
-  
-  dip:
-    enabled: true
-    check_abstractions: true
-
-error_handling:
-  require_error_handling: true
-  check_exception_types: true
-  check_error_messages: true
-  check_logging: true
-  check_error_response_format: true
-
-logging:
-  require_structured_logging: true
-  check_log_levels: true
-  check_sensitive_data: false
-
-output:
-  format: markdown
-  include_stats: true
-  include_suggestions: true
-  include_severity_breakdown: true
-
-notifications:
-  request_changes_on_critical: true
-  always_comment: true
-  include_suggestions: true
-
-pr_checks:
-  require_description: true
-  check_conventional_commits: true
-  require_linked_issue: false
-  check_branch_naming: true
-
-branch_naming:
-  pattern: "^(feat|fix|refactor|docs|test|chore|perf|ci)/(.+)$"
-  examples:
-    - "feat/epic-1-task-1-1-bootstrap"
-    - "feat/epic-1-task-1-2-config"
-    - "fix/http-client-timeout"
-    - "test/draft-advisor-unit-tests"
-    - "docs/api-endpoints"
-    - "refactor/ingestion-service-structure"
-
-tracking:
-  check_epic_references: true
-  check_task_references: true
-  reference_format: "[EPIC-N][TASK-N.M]"
-
-review_template:
-  sections:
-    - name: "🏗️ Архітектура"
-      emoji: "🏗️"
-    - name: "🔐 SOLID Принципи"
-      emoji: "🔐"
-    - name: "✨ Якість коду"
-      emoji: "✨"
-    - name: "🧪 Тести"
-      emoji: "🧪"
-    - name: "📚 Документація"
-      emoji: "📚"
-    - name: "⚡ Performance"
-      emoji: "⚡"
-    - name: "🔒 Безпека"
-      emoji: "🔒"
-    - name: "🌐 REST API"
-      emoji: "🌐"
-    - name: "🔧 FastAPI"
-      emoji: "🔧"
-
-webhooks:
-  enabled: false
+# Early access features
+early_access: true
 
 # ================================================================================
 # КІНЕЦЬ КОНФІГУРАЦІЇ
 # ================================================================================
+#
+# ВАЖЛИВО: Не додавай інші ключі крім тих що в офіційній схемі!
 # 
+# Дозволені top-level ключи тільки:
+# - reviews (та підключи)
+# - language
+# - tone_instructions
+# - early_access
+# - chat (if needed)
+# - code_generation (if needed)
+# - inheritance (if needed)
+# - knowledge_base (if needed)
+#
 # ДОКУМЕНТАЦІЯ ПРОЕКТУ:
-# • docs/DOTA2_ANALYTICS_v2_TZ.md - Повне ТЗ
-# • docs/SKILL_BUILDING_GUIDELINE.md - Як учитися
-# • docs/ARCHITECTURE_DIAGRAMS.md - Діаграми
-# • docs/QUICK_REFERENCE.md - Шпаргалка
+# • docs/DOTA2_ANALYTICS_v2_TZ.md
+# • docs/SKILL_BUILDING_GUIDELINE.md
+# • docs/ARCHITECTURE_DIAGRAMS.md
 #
 # ================================================================================

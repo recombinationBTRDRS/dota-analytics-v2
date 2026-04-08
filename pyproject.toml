@@ -8,12 +8,11 @@ packages = [
     { include = "services" }
 ]
 
+# ================================================================================
+# ОСНОВНІ ЗАЛЕЖНОСТІ (потрібні для運行 додатку в PRODUCTION)
+# ================================================================================
 [tool.poetry.dependencies]
 python = "^3.11"
-
-# HTTP Client
-httpx = "^0.27.0"
-pytest-httpx = "^0.30.0"
 
 # Web Framework
 fastapi = "^0.115.0"
@@ -30,7 +29,10 @@ pymongo = "^4.6.0"
 motor = "^3.3.2"
 
 # Cache
-redis = "=4.2.0"
+redis = "^5.0.0"
+
+# HTTP Client
+httpx = "^0.27.0"
 
 # Async
 asyncio = "^3.4.3"
@@ -42,44 +44,101 @@ python-json-logger = "^2.0.7"
 # Task Scheduling
 apscheduler = "^3.10.4"
 
+# Utilities
+python-dotenv = "^1.0.0"
+pydantic-extra-types = "^2.5.0"
+
+# ================================================================================
+# ЗАЛЕЖНОСТІ РОЗРОБКИ (тільки для локального dev, не в production)
+# ================================================================================
+[tool.poetry.group.dev.dependencies]
+
 # Testing
 pytest = "^7.4.3"
 pytest-asyncio = "^0.23.2"
 pytest-cov = "^4.1.0"
+pytest-httpx = "^0.30.0"
 
 # Code Quality
 ruff = "^0.2.0"
 mypy = "^1.8.0"
 black = "^24.1.1"
 
-# Utilities
-python-dotenv = "^1.0.0"
-pydantic-extra-types = "^2.5.0"
-
-[tool.poetry.group.dev.dependencies]
 # Development tools
 ipython = "^8.20.0"
 pytest-watch = "^4.2.0"
 
+# ================================================================================
+# BUILD СИСТЕМА
+# ================================================================================
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
 
+# ================================================================================
+# PYTEST КОНФІГУРАЦІЯ
+# ================================================================================
 [tool.pytest.ini_options]
 testpaths = ["services"]
 python_files = ["test_*.py", "*_test.py"]
 asyncio_mode = "auto"
 
+# ================================================================================
+# RUFF КОНФІГУРАЦІЯ (Linter)
+# ================================================================================
 [tool.ruff]
 line-length = 100
 target-version = "py311"
 
+# ================================================================================
+# MYPY КОНФІГУРАЦІЯ (Type Checker)
+# ================================================================================
 [tool.mypy]
 python_version = "3.11"
 warn_return_any = true
 warn_unused_configs = true
 disallow_untyped_defs = false
 
+# ================================================================================
+# BLACK КОНФІГУРАЦІЯ (Code Formatter)
+# ================================================================================
 [tool.black]
 line-length = 100
 target-version = ['py311']
+
+# ================================================================================
+# КІН ЦЬ КОНФІГУРАЦІЇ
+# ================================================================================
+#
+# ВАЖЛИВО: Залежності розділені на:
+# 
+# [tool.poetry.dependencies] 
+#   → Потрібні для запуску додатку (PRODUCTION)
+#   → poetry install --no-dev (пропускає dev)
+#   → Всі сервіси: ingestion, analytics, frontend, etc
+#   
+# [tool.poetry.group.dev.dependencies]
+#   → Тільки для локального розробки
+#   → pytest, mypy, black, ruff, ipython
+#   → НЕ встановлюються на production
+#   → poetry install (встановлює все)
+#   → poetry install --no-dev (без dev)
+#
+# КОМАНДИ:
+# 
+# Встановити все (для розробки):
+#   poetry install
+#   
+# Встановити тільки production:
+#   poetry install --no-dev
+#   
+# Оновити lock файл:
+#   poetry lock
+#   
+# Додати нову залежність (основну):
+#   poetry add fastapi
+#   
+# Додати нову залежність (dev):
+#   poetry add --group dev pytest
+#
+# ================================================================================

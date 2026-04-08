@@ -1,0 +1,21 @@
+name: CodeRabbit Review
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  pull-requests: write
+  contents: read
+
+jobs:
+  coderabbit:
+    runs-on: ubuntu-latest
+    name: CodeRabbit Review
+    steps:
+      - name: Run CodeRabbit
+        uses: coderabbit-ai/github-action@v2.0.0
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          # Optional: CodeRabbit API key for advanced features
+          # coderabbit-token: ${{ secrets.CODERABBIT_TOKEN }}

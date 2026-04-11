@@ -143,7 +143,7 @@ async def ensure_indexes() -> None:
         await db.matches.create_index("ingested_at")
         
         # Ingestion log indexes
-        await db.ingestion_log.create_index("_id", unique=True)
+        await db.ingestion_log.create_index("match_id", unique=True)
         await db.ingestion_log.create_index("status")
         await db.ingestion_log.create_index("last_attempt")
         

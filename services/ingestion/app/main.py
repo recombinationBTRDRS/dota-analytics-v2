@@ -1,17 +1,19 @@
 """FastAPI application entry point.
 
 Main application with:
+- Proper lifespan management
+- Database initialization/cleanup
 - Health check endpoints
 - CORS middleware
 - Request logging middleware
 - Structured logging
-- Dependency injection for settings
+- Dependency injection
 - Error handlers
 - API routing
 """
 
 import uuid
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 from slowapi import Limiter
@@ -19,6 +21,7 @@ from slowapi.util import get_remote_address
 
 from app.config import get_settings
 from app.logging_config import get_logger, RequestContextMiddleware
+from app.db.mongodb import init_db, close_db, ensure_indexes
 from app.routers import ingest
 from app.schemas import HealthResponse, ReadyResponse, ErrorDetail
 
@@ -32,24 +35,81 @@ limiter = Limiter(key_func=get_remote_address)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Application lifespan events (startup/shutdown).
+    """Application lifespan context manager.
     
-    Startup: Initialize connections
-    Shutdown: Close connections
+    Handles:
+    - Startup: Database initialization, index creation
+    - Shutdown: Graceful database closure
     """
+    
+    # ========================================================================
     # STARTUP
+    # ========================================================================
     logger.info(
-        "service_startup",
+        "service_startup_beginning",
         service=settings.SERVICE_NAME,
         port=settings.SERVICE_PORT,
         debug=settings.DEBUG,
+        log_level=settings.LOG_LEVEL,
     )
+    
+    try:
+        # Initialize database
+        logger.info("database_initialization_starting")
+        db = await init_db()
+        logger.info("database_connection_established")
+        
+        # Create indexes
+        logger.info("database_indexes_creation_starting")
+        await ensure_indexes()
+        logger.info("database_indexes_created_successfully")
+        
+        # Log startup success
+        logger.info(
+            "service_startup_completed",
+            service=settings.SERVICE_NAME,
+            port=settings.SERVICE_PORT,
+            status="ready",
+        )
+    
+    except Exception as exc:
+        logger.error(
+            "service_startup_failed",
+            error=str(exc),
+            error_type=type(exc).__name__,
+            exc_info=True,
+        )
+        # Re-raise to prevent app from starting
+        raise
+    
+    # Yield control to FastAPI (app is now running)
     yield
+    
+    # ========================================================================
     # SHUTDOWN
-    logger.info(
-        "service_shutdown",
-        service=settings.SERVICE_NAME,
-    )
+    # ========================================================================
+    logger.info("service_shutdown_beginning", service=settings.SERVICE_NAME)
+    
+    try:
+        # Close database connections
+        logger.info("database_connection_closing")
+        await close_db()
+        logger.info("database_connection_closed_successfully")
+        
+        # Log shutdown success
+        logger.info(
+            "service_shutdown_completed",
+            service=settings.SERVICE_NAME,
+            status="stopped",
+        )
+    
+    except Exception as exc:
+        logger.error(
+            "service_shutdown_error",
+            error=str(exc),
+            error_type=type(exc).__name__,
+            exc_info=True,
+        )
 
 
 # Initialize FastAPI app
@@ -132,8 +192,10 @@ async def get_config():
         "service_name": settings.SERVICE_NAME,
         "service_port": settings.SERVICE_PORT,
         "log_level": settings.LOG_LEVEL,
+        "log_format": settings.LOG_FORMAT,
         "opendota_api": settings.OPENDOTA_BASE_URL,
         "mongodb_db": settings.MONGODB_DB_NAME,
+        "redis_url": settings.REDIS_URL,
         "debug": settings.DEBUG,
     }
 
@@ -158,7 +220,7 @@ async def global_exception_handler(request: Request, exc: Exception):
         exc: Exception that occurred
         
     Returns:
-        JSONResponse with error details
+        ErrorDetail response
     """
     request_id = str(uuid.uuid4())
     logger.error(
@@ -177,6 +239,22 @@ async def global_exception_handler(request: Request, exc: Exception):
         detail=str(exc) if settings.DEBUG else "An error occurred",
         request_id=request_id,
     ).model_dump()
+
+
+# ============================================================================
+# STARTUP/SHUTDOWN EVENTS (legacy, but useful for monitoring)
+# ============================================================================
+
+@app.on_event("startup")
+async def on_startup():
+    """Called when app starts (after lifespan startup)."""
+    logger.debug("startup_event_triggered")
+
+
+@app.on_event("shutdown")
+async def on_shutdown():
+    """Called when app shuts down (after lifespan shutdown)."""
+    logger.debug("shutdown_event_triggered")
 
 
 if __name__ == "__main__":

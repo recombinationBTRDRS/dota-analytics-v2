@@ -42,7 +42,6 @@ README.md
 .env
 .env.local
 .env.*.local
-poetry.lock
 
 # OS
 Thumbs.db

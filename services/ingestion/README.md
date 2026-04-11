@@ -1,38 +1,41 @@
 # Dota 2 Analytics - Ingestion Service
 
-## Overview
-
 HTTP service that fetches, parses, validates, and stores Dota 2 matches from OpenDota API.
 
-Port: **8001**
+## Features
+
+- ✅ Async API with FastAPI
+- ✅ MongoDB for match storage
+- ✅ Redis for caching
+- ✅ Structured JSON logging
+- ✅ Repository Pattern for data access
+- ✅ Request/Response validation with Pydantic
+- ✅ OpenAPI/Swagger documentation
+- ✅ Health checks and readiness probes
+- ✅ CORS and rate limiting
+- ✅ Proper error handling
+- ✅ Dependency injection
 
 ## Quick Start
 
-### Using Docker Compose (Recommended)
+### Using Docker Compose
 
 ```bash
-# Start all services
-docker-compose up -d
-
-# View logs
-docker-compose logs -f ingestion
-
-# Stop all services
-docker-compose down
+cd ../..
+docker-compose up -d ingestion
 ```
 
-### Manual Setup (Local Development)
+### Manual Setup
 
 ```bash
 # Install dependencies
 poetry install
 
-# Set up environment
-cp .env.example .env
-# Edit .env with your local settings
+# Create .env
+cp ../../.env.example .env
 
-# Start services locally
-poetry run python -m uvicorn services.ingestion.app.main:app --reload --port 8001
+# Start service
+poetry run python -m uvicorn app.main:app --reload --port 8001
 ```
 
 ## Health Checks
@@ -44,94 +47,129 @@ curl http://localhost:8001/health
 # Readiness check
 curl http://localhost:8001/ready
 
-# Debug config (only in DEBUG=true)
+# Config (debug)
 curl http://localhost:8001/config
 ```
+
+## API Endpoints
+
+### Ingest Match
+
+```bash
+curl -X POST http://localhost:8001/api/v1/ingest/opendota \
+  -H "Content-Type: application/json" \
+  -d '{"match_id": 7123456789}'
+
+# Response:
+{
+  "match_id": 7123456789,
+  "status": "pending",
+  "message": "Match queued for ingestion",
+  "request_id": "uuid-123"
+}
+```
+
+### Get Ingestion Status
+
+```bash
+curl http://localhost:8001/api/v1/ingest/status/7123456789
+
+# Response:
+{
+  "match_id": 7123456789,
+  "status": "ingested",
+  "attempt": 1,
+  "error": null
+}
+```
+
+## API Documentation
+
+Visit: http://localhost:8001/docs
+
+## Testing
+
+```bash
+# All tests
+poetry run pytest tests/ -v
+
+# Specific test file
+poetry run pytest tests/test_endpoints.py -v
+
+# With coverage
+poetry run pytest tests/ --cov=app -v
+```
+
+## Development
+
+### Code Quality
+
+```bash
+# Format
+poetry run black app/ tests/
+
+# Lint
+poetry run ruff check app/ tests/
+
+# Type check
+poetry run mypy app/
+```
+
+### Directory Structure
+app/
+├── init.py
+├── main.py              # FastAPI application
+├── config.py            # Settings
+├── schemas.py           # Pydantic models
+├── routers/             # API endpoints
+│   ├── init.py
+│   └── ingest.py
+├── db/                  # Data access layer
+│   ├── init.py
+│   ├── mongodb.py       # MongoDB client
+│   ├── repositories.py  # Repository Pattern
+│   └── dependencies.py  # Dependency injection
+└── logging_config.py    # Structured logging
+tests/
+├── init.py
+├── test_smoke.py        # Smoke tests
+├── test_config.py       # Config tests
+├── test_logging.py      # Logging tests
+├── test_repositories.py # Repository tests
+├── test_endpoints.py    # Endpoint tests
+├── test_docker.py       # Docker tests
+└── test_lifespan.py     # Lifespan tests
 
 ## Configuration
 
 See `.env.example` for all available settings.
 
-### Key Settings
+## Logging
 
-| Setting | Default | Description |
-|---------|---------|-------------|
-| `SERVICE_PORT` | 8001 | Service port |
-| `DEBUG` | true | Debug mode |
-| `OPENDOTA_TIMEOUT` | 30 | Request timeout (seconds) |
-| `MONGODB_URL` | mongodb://localhost:27017 | MongoDB connection |
-| `REDIS_URL` | redis://localhost:6379 | Redis connection |
+Structured JSON logging to stdout:
 
-## API Documentation
-
-Once running, visit: http://localhost:8001/docs
-
-## Testing
-
-```bash
-# Run all tests
-poetry run pytest services/ingestion/tests/ -v
-
-# Run with coverage
-poetry run pytest services/ingestion/tests/ --cov=services.ingestion
-
-# Run specific test
-poetry run pytest services/ingestion/tests/test_config.py -v
+```json
+{
+  "timestamp": "2025-04-08T10:30:45.123Z",
+  "level": "INFO",
+  "name": "app.routers.ingest",
+  "message": "ingest_opendota_requested",
+  "match_id": 7123456789,
+  "request_id": "uuid-123"
+}
 ```
 
-## Development
+## Performance
 
-### Code Quality Tools
+- Async/await for non-blocking I/O
+- Connection pooling for MongoDB
+- Redis caching for frequently accessed data
+- Rate limiting to prevent abuse
+- Request logging for monitoring
 
-```bash
-# Format code
-poetry run black services/ingestion/
+## Error Handling
 
-# Lint code
-poetry run ruff check services/ingestion/
-
-# Type checking
-poetry run mypy services/ingestion/
-```
-
-### Directory Structure
-services/ingestion/
-├── app/
-│   ├── init.py
-│   ├── main.py           # FastAPI app
-│   ├── config.py         # Settings
-│   ├── routers/          # API endpoints
-│   └── db/               # Database layer
-├── tests/
-│   ├── test_smoke.py
-│   ├── test_config.py
-│   └── test_docker.py
-└── README.md
-
-## Docker Details
-
-### Build Image
-
-```bash
-docker build -t dota2-ingestion:latest .
-```
-
-### Run Container
-
-```bash
-docker run -p 8001:8001 \
-  -e DEBUG=true \
-  -e MONGODB_URL=mongodb://mongodb:27017 \
-  -e REDIS_URL=redis://redis:6379 \
-  --network dota2_network \
-  dota2-ingestion:latest
-```
-
-### Health Check
-
-Container includes health check:
-
-```bash
-docker ps  # Check health status
-# Should show "healthy" after 10-20 seconds
-```
+- Validation errors (422)
+- Not found errors (404)
+- Server errors (500)
+- All errors include request_id for tracking

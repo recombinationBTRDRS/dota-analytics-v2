@@ -7,6 +7,7 @@ Provides:
 - Context managers for connections
 """
 
+from contextlib import asynccontextmanager
 from typing import Optional, AsyncGenerator
 from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorDatabase
 from app.config import get_settings
@@ -119,7 +120,7 @@ def get_db() -> AsyncIOMotorDatabase:
         raise RuntimeError("Database not initialized. Call init_db() first.")
     return _db
 
-
+@asynccontextmanager
 async def get_db_context() -> AsyncGenerator[AsyncIOMotorDatabase, None]:
     """Get database as async context manager.
     
@@ -207,8 +208,15 @@ async def validate_collection_schemas() -> None:
             )
             logger.info("matches_schema_validated")
         except Exception as exc:
-            # Collection might not exist yet
-            logger.debug("matches_collection_not_exists_yet", error=str(exc))
+            if "namespace not found" in str(exc).lower():
+                logger.debug("matches_collection_not_exists_yet")
+            else:
+                logger.error(
+                    "matches_schema_validation_failed",
+                    error=str(exc),
+                    exc_info=True,
+                )
+                raise
         
         logger.info("mongodb_schema_validation_completed")
     

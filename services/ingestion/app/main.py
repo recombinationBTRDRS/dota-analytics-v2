@@ -39,6 +39,9 @@ limiter = Limiter(key_func=get_remote_address)
 async def lifespan(app: FastAPI):
     """Application lifespan context manager."""
 
+    db = None
+    opendota_client = None
+
     # ========================================================================
     # STARTUP
     # ========================================================================
@@ -66,7 +69,6 @@ async def lifespan(app: FastAPI):
         opendota_client = await get_client()
         logger.info("opendota_client_initialized")
 
-        # Log startup success
         logger.info(
             "service_startup_completed",
             service=settings.SERVICE_NAME,
@@ -81,9 +83,22 @@ async def lifespan(app: FastAPI):
             error_type=type(exc).__name__,
             exc_info=True,
         )
+
+        # 🔥 CLEANUP (ВАЖЛИВО)
+        if opendota_client:
+            try:
+                await close_client()
+            except Exception:
+                pass
+
+        if db:
+            try:
+                await close_db()
+            except Exception:
+                pass
+
         raise
 
-    # Yield control to FastAPI
     yield
 
     # ========================================================================
@@ -92,20 +107,14 @@ async def lifespan(app: FastAPI):
     logger.info("service_shutdown_beginning", service=settings.SERVICE_NAME)
 
     try:
-        # Close database connections
         logger.info("database_connection_closing")
         await close_db()
         logger.info("database_connection_closed_successfully")
 
-        # Close OpenDota client
-        try:
-            logger.info("opendota_client_closing")
-            await close_client()
-            logger.info("opendota_client_closed")
-        except Exception as exc:
-            logger.error("opendota_client_close_failed", error=str(exc))
+        logger.info("opendota_client_closing")
+        await close_client()
+        logger.info("opendota_client_closed")
 
-        # Log shutdown success
         logger.info(
             "service_shutdown_completed",
             service=settings.SERVICE_NAME,
@@ -252,22 +261,6 @@ async def global_exception_handler(request: Request, exc: Exception):
             request_id=request_id,
         ).model_dump()
     )
-
-
-# ============================================================================
-# STARTUP/SHUTDOWN EVENTS (legacy, but useful for monitoring)
-# ============================================================================
-
-@app.on_event("startup")
-async def on_startup():
-    """Called when app starts (after lifespan startup)."""
-    logger.debug("startup_event_triggered")
-
-
-@app.on_event("shutdown")
-async def on_shutdown():
-    """Called when app shuts down (after lifespan shutdown)."""
-    logger.debug("shutdown_event_triggered")
 
 
 if __name__ == "__main__":

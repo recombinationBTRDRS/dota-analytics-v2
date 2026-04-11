@@ -20,7 +20,7 @@ T = TypeVar('T', bound=Dict[str, Any])
 
 class BaseRepository(ABC, Generic[T]):
     """Abstract base repository for common CRUD operations.
-    
+
     Provides:
     - Create
     - Read
@@ -28,33 +28,34 @@ class BaseRepository(ABC, Generic[T]):
     - Delete
     - List
     """
-    
+
     def __init__(self, collection_name: str):
         """Initialize repository.
-        
+
         Args:
             collection_name: Name of MongoDB collection
         """
         self.collection_name = collection_name
         self._collection: Optional[AsyncIOMotorCollection] = None
-    
+
     @property
     def collection(self) -> AsyncIOMotorCollection:
         """Get MongoDB collection.
-        
+
         Returns:
             AsyncIOMotorCollection: MongoDB collection instance
         """
         if self._collection is not None:
             return self._collection
-        
+
         db = get_db()
         return db[self.collection_name]
-    
+
     @collection.setter
     def collection(self, value: AsyncIOMotorCollection):
         """Allow overriding collection (for tests)."""
         self._collection = value
+
     
     async def create(self, data: T) -> T:
         """Create new document.

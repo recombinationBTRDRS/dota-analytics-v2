@@ -35,13 +35,8 @@ limiter = Limiter(key_func=get_remote_address)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Application lifespan context manager.
-    
-    Handles:
-    - Startup: Database initialization, index creation
-    - Shutdown: Graceful database closure
-    """
-    
+    """Application lifespan context manager."""
+
     # ========================================================================
     # STARTUP
     # ========================================================================
@@ -52,18 +47,24 @@ async def lifespan(app: FastAPI):
         debug=settings.DEBUG,
         log_level=settings.LOG_LEVEL,
     )
-    
+
     try:
         # Initialize database
         logger.info("database_initialization_starting")
         db = await init_db()
         logger.info("database_connection_established")
-        
+
         # Create indexes
         logger.info("database_indexes_creation_starting")
         await ensure_indexes()
         logger.info("database_indexes_created_successfully")
-        
+
+        # Initialize OpenDota client
+        logger.info("opendota_client_initialization_starting")
+        from app.external.opendota import get_client
+        opendota_client = await get_client()
+        logger.info("opendota_client_initialized")
+
         # Log startup success
         logger.info(
             "service_startup_completed",
@@ -71,7 +72,7 @@ async def lifespan(app: FastAPI):
             port=settings.SERVICE_PORT,
             status="ready",
         )
-    
+
     except Exception as exc:
         logger.error(
             "service_startup_failed",
@@ -79,30 +80,38 @@ async def lifespan(app: FastAPI):
             error_type=type(exc).__name__,
             exc_info=True,
         )
-        # Re-raise to prevent app from starting
         raise
-    
-    # Yield control to FastAPI (app is now running)
+
+    # Yield control to FastAPI
     yield
-    
+
     # ========================================================================
     # SHUTDOWN
     # ========================================================================
     logger.info("service_shutdown_beginning", service=settings.SERVICE_NAME)
-    
+
     try:
         # Close database connections
         logger.info("database_connection_closing")
         await close_db()
         logger.info("database_connection_closed_successfully")
-        
+
+        # Close OpenDota client
+        try:
+            logger.info("opendota_client_closing")
+            from app.external.opendota import close_client
+            await close_client()
+            logger.info("opendota_client_closed")
+        except Exception as exc:
+            logger.error("opendota_client_close_failed", error=str(exc))
+
         # Log shutdown success
         logger.info(
             "service_shutdown_completed",
             service=settings.SERVICE_NAME,
             status="stopped",
         )
-    
+
     except Exception as exc:
         logger.error(
             "service_shutdown_error",

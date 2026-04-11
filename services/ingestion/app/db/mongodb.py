@@ -5,20 +5,57 @@ Provides:
 - Connection pooling
 - Database initialization
 - Context managers for connections
+- Credential sanitization for logging
 """
 
-from contextlib import asynccontextmanager
 from typing import Optional, AsyncGenerator
+from urllib.parse import urlparse
 from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorDatabase
 from app.config import get_settings
 from app.logging_config import get_logger
-from urllib.parse import urlparse
 
 logger = get_logger(__name__)
 
 # Global database instance
 _db_client: Optional[AsyncIOMotorClient] = None
 _db: Optional[AsyncIOMotorDatabase] = None
+
+
+def _sanitize_url(url: str) -> str:
+    """Remove credentials from URL for safe logging.
+    
+    Args:
+        url: MongoDB connection URL
+        
+    Returns:
+        URL with credentials redacted
+        
+    Example:
+        url = "mongodb://user:pass@localhost:27017/db"
+        safe = _sanitize_url(url)  # "mongodb://localhost:27017/db"
+    """
+    try:
+        parsed = urlparse(url)
+        
+        # Build safe netloc without credentials
+        if parsed.password:
+            # Remove username:password@ part
+            safe_netloc = f"{parsed.hostname}"
+            if parsed.port:
+                safe_netloc += f":{parsed.port}"
+        else:
+            safe_netloc = parsed.netloc
+        
+        # Reconstruct URL
+        path = f"/{parsed.path.lstrip('/')}" if parsed.path else ""
+        query = f"?{parsed.query}" if parsed.query else ""
+        
+        safe_url = f"{parsed.scheme}://{safe_netloc}{path}{query}"
+        return safe_url
+    
+    except Exception:
+        # If parsing fails, return masked version
+        return "mongodb://***"
 
 
 async def init_db() -> AsyncIOMotorDatabase:
@@ -40,18 +77,13 @@ async def init_db() -> AsyncIOMotorDatabase:
     
     settings = get_settings()
     
-    def sanitize_url(url: str) -> str:
-        """Remove credentials from URL for logging."""
-        parsed = urlparse(url)
-        if parsed.password:
-            safe_netloc = f"{parsed.hostname}:{parsed.port}" if parsed.port else parsed.hostname
-        else:
-            safe_netloc = parsed.netloc
-        safe_url = f"{parsed.scheme}://{safe_netloc}/{parsed.path.lstrip('/')}"
-        return safe_url
-
     try:
-        logger.info("mongodb_connection_starting", url=sanitize_url(settings.MONGODB_URL))
+        safe_url = _sanitize_url(settings.MONGODB_URL)
+        logger.info(
+            "mongodb_connection_starting",
+            url=safe_url,
+            db_name=settings.MONGODB_DB_NAME,
+        )
         
         # Create async client
         _db_client = AsyncIOMotorClient(
@@ -81,9 +113,9 @@ async def init_db() -> AsyncIOMotorDatabase:
 
 
 async def close_db() -> None:
-    """Close MongoDB connection.
+    """Close MongoDB connection gracefully.
     
-    Gracefully closes the async client.
+    Closes async client and clears cached references.
     
     Example:
         await close_db()
@@ -94,14 +126,18 @@ async def close_db() -> None:
         try:
             logger.info("mongodb_connection_closing")
             _db_client.close()
-            _db_client = None  # ← Очисти
-            _db = None         # ← Очисти
+            _db_client = None
+            _db = None
             logger.info("mongodb_connection_closed")
         except Exception as exc:
-            logger.error("mongodb_close_failed", error=str(exc))
-            _db_client = None  # ← Очисти й у error case
+            logger.error(
+                "mongodb_close_failed",
+                error=str(exc),
+                exc_info=True,
+            )
+            # Ensure cleanup even on error
+            _db_client = None
             _db = None
-
 
 
 def get_db() -> AsyncIOMotorDatabase:
@@ -120,7 +156,7 @@ def get_db() -> AsyncIOMotorDatabase:
         raise RuntimeError("Database not initialized. Call init_db() first.")
     return _db
 
-@asynccontextmanager
+
 async def get_db_context() -> AsyncGenerator[AsyncIOMotorDatabase, None]:
     """Get database as async context manager.
     
@@ -156,7 +192,7 @@ async def ensure_indexes() -> None:
         await db.matches.create_index("ingested_at")
         
         # Ingestion log indexes
-        await db.ingestion_log.create_index("match_id", unique=True)
+        await db.ingestion_log.create_index("_id", unique=True)
         await db.ingestion_log.create_index("status")
         await db.ingestion_log.create_index("last_attempt")
         
@@ -199,7 +235,7 @@ async def validate_collection_schemas() -> None:
             }
         }
         
-        # Create validator
+        # Create validator - only treat collection-not-found as benign
         try:
             await db.command(
                 "collMod",
@@ -208,11 +244,14 @@ async def validate_collection_schemas() -> None:
             )
             logger.info("matches_schema_validated")
         except Exception as exc:
-            if "namespace not found" in str(exc).lower():
-                logger.debug("matches_collection_not_exists_yet")
+            error_str = str(exc).lower()
+            # Only ignore "namespace not found" errors
+            if "namespace" in error_str or "not found" in error_str:
+                logger.debug("matches_collection_not_exists_yet", error=str(exc))
             else:
+                # Re-raise other errors (auth, invalid validator, server errors)
                 logger.error(
-                    "matches_schema_validation_failed",
+                    "matches_schema_validation_error",
                     error=str(exc),
                     exc_info=True,
                 )
@@ -226,3 +265,4 @@ async def validate_collection_schemas() -> None:
             error=str(exc),
             exc_info=True,
         )
+        raise

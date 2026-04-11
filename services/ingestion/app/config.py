@@ -22,7 +22,6 @@ class Settings(BaseSettings):
         env_file=".env",
         env_file_encoding="utf-8",
         case_sensitive=True,
-        extra="ignore",
     )
 
     # ========================================================================
@@ -161,6 +160,15 @@ class Settings(BaseSettings):
         if v.upper() not in valid_levels:
             raise ValueError(f"Log level must be one of {valid_levels}")
         return v.upper()
+
+    @field_validator("LOG_FORMAT")
+    @classmethod
+    def validate_log_format(cls, v: str) -> str:
+        """Validate log format is supported."""
+        valid_formats = {"json", "text"}
+        if v.lower() not in valid_formats:
+            raise ValueError(f"Log format must be one of {valid_formats}")
+        return v.lower()
 
 
 @lru_cache()

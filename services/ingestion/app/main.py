@@ -1,26 +1,25 @@
 """FastAPI application entry point.
 
 Main application with:
-- Proper lifespan management
+- Proper lifespan management with DB initialization
 - Database initialization/cleanup
 - Health check endpoints
 - CORS middleware
 - Request logging middleware
 - Structured logging
 - Dependency injection
-- Error handlers
+- Error handlers with proper HTTP status codes
 - API routing
 """
 
 import uuid
-from fastapi import FastAPI, Request, Depends
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from contextlib import asynccontextmanager
 from slowapi import Limiter
 from slowapi.util import get_remote_address
-from starlette.responses import JSONResponse
 
-from app.external.opendota import get_client, close_client
 from app.config import get_settings
 from app.logging_config import get_logger, RequestContextMiddleware
 from app.db.mongodb import init_db, close_db, ensure_indexes
@@ -37,11 +36,13 @@ limiter = Limiter(key_func=get_remote_address)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Application lifespan context manager."""
-
-    db = None
-    opendota_client = None
-
+    """Application lifespan context manager.
+    
+    Handles:
+    - Startup: Database initialization, index creation
+    - Shutdown: Graceful database closure
+    """
+    
     # ========================================================================
     # STARTUP
     # ========================================================================
@@ -52,30 +53,26 @@ async def lifespan(app: FastAPI):
         debug=settings.DEBUG,
         log_level=settings.LOG_LEVEL,
     )
-
+    
     try:
         # Initialize database
         logger.info("database_initialization_starting")
         db = await init_db()
         logger.info("database_connection_established")
-
+        
         # Create indexes
         logger.info("database_indexes_creation_starting")
         await ensure_indexes()
         logger.info("database_indexes_created_successfully")
-
-        # Initialize OpenDota client
-        logger.info("opendota_client_initialization_starting")
-        opendota_client = await get_client()
-        logger.info("opendota_client_initialized")
-
+        
+        # Log startup success
         logger.info(
             "service_startup_completed",
             service=settings.SERVICE_NAME,
             port=settings.SERVICE_PORT,
             status="ready",
         )
-
+    
     except Exception as exc:
         logger.error(
             "service_startup_failed",
@@ -83,44 +80,30 @@ async def lifespan(app: FastAPI):
             error_type=type(exc).__name__,
             exc_info=True,
         )
-
-        # 🔥 CLEANUP (ВАЖЛИВО)
-        if opendota_client:
-            try:
-                await close_client()
-            except Exception:
-                pass
-
-        if db:
-            try:
-                await close_db()
-            except Exception:
-                pass
-
+        # Re-raise to prevent app from starting
         raise
-
+    
+    # Yield control to FastAPI (app is now running)
     yield
-
+    
     # ========================================================================
     # SHUTDOWN
     # ========================================================================
     logger.info("service_shutdown_beginning", service=settings.SERVICE_NAME)
-
+    
     try:
+        # Close database connections
         logger.info("database_connection_closing")
         await close_db()
         logger.info("database_connection_closed_successfully")
-
-        logger.info("opendota_client_closing")
-        await close_client()
-        logger.info("opendota_client_closed")
-
+        
+        # Log shutdown success
         logger.info(
             "service_shutdown_completed",
             service=settings.SERVICE_NAME,
             status="stopped",
         )
-
+    
     except Exception as exc:
         logger.error(
             "service_shutdown_error",
@@ -128,7 +111,6 @@ async def lifespan(app: FastAPI):
             error_type=type(exc).__name__,
             exc_info=True,
         )
-
 
 
 # Initialize FastAPI app
@@ -214,7 +196,7 @@ async def get_config():
         "log_format": settings.LOG_FORMAT,
         "opendota_api": settings.OPENDOTA_BASE_URL,
         "mongodb_db": settings.MONGODB_DB_NAME,
-        "redis_url": settings.REDIS_URL,
+        "redis_url": "redis://***",  # Sanitize for logging
         "debug": settings.DEBUG,
     }
 
@@ -234,12 +216,14 @@ app.include_router(ingest.router)
 async def global_exception_handler(request: Request, exc: Exception):
     """Global exception handler.
     
+    Catches all unhandled exceptions and returns proper HTTP 500 response.
+    
     Args:
         request: HTTP request
         exc: Exception that occurred
         
     Returns:
-        ErrorDetail response
+        JSONResponse with error details and HTTP 500 status
     """
     request_id = str(uuid.uuid4())
     logger.error(
@@ -252,14 +236,16 @@ async def global_exception_handler(request: Request, exc: Exception):
         exc_info=True,
     )
     
+    error_detail = ErrorDetail(
+        error="Internal server error",
+        status=500,
+        detail=str(exc) if settings.DEBUG else "An error occurred",
+        request_id=request_id,
+    )
+    
     return JSONResponse(
         status_code=500,
-        content=ErrorDetail(
-            error="Internal server error",
-            status=500,
-            detail=str(exc) if settings.DEBUG else "An error occurred",
-            request_id=request_id,
-        ).model_dump()
+        content=error_detail.model_dump(),
     )
 
 

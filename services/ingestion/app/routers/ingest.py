@@ -4,9 +4,8 @@ Endpoints for:
 - Ingesting matches from OpenDota
 - Checking ingestion status
 """
-
 import uuid
-from fastapi import APIRouter, HTTPException, status, Query
+from fastapi import APIRouter, Path, HTTPException, status
 from app.logging_config import get_logger
 from app.schemas import (
     IngestRequest,
@@ -14,6 +13,7 @@ from app.schemas import (
     IngestStatusResponse,
     ErrorDetail,
 )
+
 
 logger = get_logger(__name__)
 
@@ -89,29 +89,29 @@ async def ingest_opendota(request: IngestRequest):
         500: {"model": ErrorDetail, "description": "Server error"},
     },
 )
-async def get_ingest_status(match_id: int):
+async def get_ingest_status(match_id: int = Path(..., gt=0)):
     """Get ingestion status for a match.
-    
+
     Args:
-        match_id: Dota 2 match ID
-        
+        match_id: Dota 2 match ID (must be > 0)
+
     Returns:
         IngestStatusResponse with current status
-        
+
     Raises:
-        HTTPException: If match not found
+        HTTPException: If match not found or server error
     """
     logger.info("ingest_status_requested", match_id=match_id)
-    
+
     try:
-        # TODO: Implement in Task 2.1
+        # TODO: Implement actual status lookup in Task 2.1
         return IngestStatusResponse(
             match_id=match_id,
             status="unknown",
             attempt=0,
             error=None,
         )
-    
+
     except Exception as exc:
         logger.error(
             "ingest_status_failed",

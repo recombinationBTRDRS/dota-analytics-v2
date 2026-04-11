@@ -1,18 +1,12 @@
 # ============================================================================
 # Docker Compose Configuration for Local Development
 # ============================================================================
-# Usage:
-#   docker-compose up                 # Start all services
-#   docker-compose down               # Stop all services
-#   docker-compose logs -f ingestion  # View logs for specific service
-# ============================================================================
-
 version: '3.9'
 
 services:
-  # ========================================================================== 
+  # ==========================================================================
   # POSTGRESQL DATABASE
-  # ========================================================================== 
+  # ==========================================================================
   postgres:
     image: postgres:15-alpine
     container_name: dota2_postgres
@@ -30,11 +24,11 @@ services:
     networks:
       - dota2_network
 
-  # ========================================================================== 
+  # ==========================================================================
   # MONGODB NOSQL DATABASE
-  # ========================================================================== 
+  # ==========================================================================
   mongodb:
-    image: mongo:6.0-alpine
+    image: mongo:6.0 
     container_name: dota2_mongodb
     env_file:
       - .env
@@ -43,18 +37,27 @@ services:
     volumes:
       - mongodb_data:/data/db
       - mongodb_config:/data/configdb
+    command: mongod --auth
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD}
+      MONGO_INITDB_DATABASE: ${MONGO_INITDB_DATABASE}
     healthcheck:
-      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet
+      test: |
+        echo 'db.runCommand("ping").ok' | mongosh \
+          --username ${MONGO_INITDB_ROOT_USERNAME} \
+          --password ${MONGO_INITDB_ROOT_PASSWORD} \
+          --authenticationDatabase admin \
+          localhost:27017/test --quiet
       interval: 10s
       timeout: 5s
       retries: 5
     networks:
       - dota2_network
-    command: mongod --auth
 
-  # ========================================================================== 
+  # ==========================================================================
   # REDIS CACHE
-  # ========================================================================== 
+  # ==========================================================================
   redis:
     image: redis:7-alpine
     container_name: dota2_redis
@@ -71,9 +74,9 @@ services:
       - dota2_network
     command: redis-server --appendonly yes
 
-  # ========================================================================== 
+  # ==========================================================================
   # DATA INGESTION SERVICE
-  # ========================================================================== 
+  # ==========================================================================
   ingestion:
     build:
       context: .
@@ -99,22 +102,6 @@ services:
     networks:
       - dota2_network
     restart: unless-stopped
-
-  # ==========================================================================
-  # REFERENCE DATA SERVICE (placeholder for Phase 2)
-  # ==========================================================================
-  # reference_data:
-  #   build:
-  #     context: .
-  #     dockerfile: Dockerfile
-  #   container_name: dota2_reference_data
-  #   ports:
-  #     - "8002:8002"
-  #   depends_on:
-  #     - mongodb
-  #     - postgres
-  #   networks:
-  #     - dota2_network
 
 volumes:
   postgres_data:

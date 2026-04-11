@@ -18,7 +18,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 from slowapi import Limiter
 from slowapi.util import get_remote_address
+from starlette.responses import JSONResponse
 
+from app.external.opendota import get_client, close_client
 from app.config import get_settings
 from app.logging_config import get_logger, RequestContextMiddleware
 from app.db.mongodb import init_db, close_db, ensure_indexes
@@ -61,7 +63,6 @@ async def lifespan(app: FastAPI):
 
         # Initialize OpenDota client
         logger.info("opendota_client_initialization_starting")
-        from app.external.opendota import get_client
         opendota_client = await get_client()
         logger.info("opendota_client_initialized")
 
@@ -99,7 +100,6 @@ async def lifespan(app: FastAPI):
         # Close OpenDota client
         try:
             logger.info("opendota_client_closing")
-            from app.external.opendota import close_client
             await close_client()
             logger.info("opendota_client_closed")
         except Exception as exc:
@@ -119,6 +119,7 @@ async def lifespan(app: FastAPI):
             error_type=type(exc).__name__,
             exc_info=True,
         )
+
 
 
 # Initialize FastAPI app
@@ -242,12 +243,15 @@ async def global_exception_handler(request: Request, exc: Exception):
         exc_info=True,
     )
     
-    return ErrorDetail(
-        error="Internal server error",
-        status=500,
-        detail=str(exc) if settings.DEBUG else "An error occurred",
-        request_id=request_id,
-    ).model_dump()
+    return JSONResponse(
+        status_code=500,
+        content=ErrorDetail(
+            error="Internal server error",
+            status=500,
+            detail=str(exc) if settings.DEBUG else "An error occurred",
+            request_id=request_id,
+        ).model_dump()
+    )
 
 
 # ============================================================================

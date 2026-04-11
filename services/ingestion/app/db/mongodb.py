@@ -11,6 +11,7 @@ from typing import Optional, AsyncGenerator
 from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorDatabase
 from app.config import get_settings
 from app.logging_config import get_logger
+from urllib.parse import urlparse
 
 logger = get_logger(__name__)
 
@@ -38,8 +39,18 @@ async def init_db() -> AsyncIOMotorDatabase:
     
     settings = get_settings()
     
+    def sanitize_url(url: str) -> str:
+        """Remove credentials from URL for logging."""
+        parsed = urlparse(url)
+        if parsed.password:
+            safe_netloc = f"{parsed.hostname}:{parsed.port}" if parsed.port else parsed.hostname
+        else:
+            safe_netloc = parsed.netloc
+        safe_url = f"{parsed.scheme}://{safe_netloc}/{parsed.path.lstrip('/')}"
+        return safe_url
+
     try:
-        logger.info("mongodb_connection_starting", url=settings.MONGODB_URL)
+        logger.info("mongodb_connection_starting", url=sanitize_url(settings.MONGODB_URL))
         
         # Create async client
         _db_client = AsyncIOMotorClient(
@@ -65,7 +76,7 @@ async def init_db() -> AsyncIOMotorDatabase:
             error_type=type(exc).__name__,
             exc_info=True,
         )
-        raise ConnectionError(f"Failed to connect to MongoDB: {exc}")
+        raise ConnectionError(f"Failed to connect to MongoDB: {exc}") from exc
 
 
 async def close_db() -> None:
@@ -76,19 +87,20 @@ async def close_db() -> None:
     Example:
         await close_db()
     """
-    global _db_client
+    global _db_client, _db
     
     if _db_client:
         try:
             logger.info("mongodb_connection_closing")
             _db_client.close()
+            _db_client = None  # ← Очисти
+            _db = None         # ← Очисти
             logger.info("mongodb_connection_closed")
         except Exception as exc:
-            logger.error(
-                "mongodb_close_failed",
-                error=str(exc),
-                exc_info=True,
-            )
+            logger.error("mongodb_close_failed", error=str(exc))
+            _db_client = None  # ← Очисти й у error case
+            _db = None
+
 
 
 def get_db() -> AsyncIOMotorDatabase:

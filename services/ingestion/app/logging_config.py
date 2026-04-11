@@ -20,15 +20,15 @@ settings = get_settings()
 
 
 def configure_logging() -> None:
-    """Configure structured logging with structlog and JSON output.
-    
-    Sets up:
-    - structlog for structured logging
-    - JSON formatting for all logs
-    - Proper log levels
-    - Request tracking
-    """
-    
+    """Configure structured logging with structlog and JSON output."""
+
+    # Мапа форматерів: "json" → json, "text" → standard
+    formatter_map = {
+        "json": "json",
+        "text": "standard",
+    }
+    formatter_key = formatter_map.get(settings.LOG_FORMAT, "standard")
+
     # Configure standard logging first
     logging.config.dictConfig({
         "version": 1,
@@ -49,7 +49,7 @@ def configure_logging() -> None:
             "console": {
                 "class": "logging.StreamHandler",
                 "level": settings.LOG_LEVEL,
-                "formatter": settings.LOG_FORMAT,
+                "formatter": formatter_key,  # ← Використовуємо mapped key
                 "stream": "ext://sys.stdout",
             },
         },
@@ -58,7 +58,7 @@ def configure_logging() -> None:
             "handlers": ["console"],
         },
     })
-    
+
     # Configure structlog
     structlog.configure(
         processors=[
@@ -68,7 +68,7 @@ def configure_logging() -> None:
             structlog.stdlib.PositionalArgumentsFormatter(),
             structlog.processors.TimeStamper(fmt="iso"),
             structlog.processors.StackInfoRenderer(),
-            structlog.processors.format_exc_info,            
+            structlog.processors.format_exc_info,
             structlog.processors.JSONRenderer()
             if settings.LOG_FORMAT == "json"
             else structlog.dev.ConsoleRenderer(),
@@ -77,6 +77,7 @@ def configure_logging() -> None:
         logger_factory=structlog.stdlib.LoggerFactory(),
         cache_logger_on_first_use=True,
     )
+
 
 
 def get_logger(name: str) -> structlog.BoundLogger:

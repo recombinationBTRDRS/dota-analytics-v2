@@ -8,7 +8,7 @@ This module provides centralized configuration management with:
 """
 
 from typing import Optional
-from pydantic import Field, field_validator
+from pydantic import Field, field_validator, ConfigDict
 from pydantic_settings import BaseSettings
 from functools import lru_cache
 
@@ -132,14 +132,13 @@ class Settings(BaseSettings):
     )
 
     class Config:
-        """Pydantic configuration."""
+        """Pydantic configuration"""
         env_file = ".env"
         env_file_encoding = "utf-8"
         case_sensitive = True
-
-    @field_validator("OPENDOTA_TIMEOUT", "DISCOVERY_INTERVAL_SEC")
-    @classmethod
-    def validate_positive_numbers(cls, v: int) -> int:
+    
+    @field_validator("OPENDOTA_TIMEOUT","DISCOVERY_INTERVAL_SEC")
+    def validate_positive_nubers(cls, v: int) -> int:
         """Ensure timeout and interval are positive."""
         if v <= 0:
             raise ValueError("Must be a positive number")

@@ -12,6 +12,7 @@ Main application with:
 import uuid
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from contextlib import asynccontextmanager
 
 from app.config import get_settings
@@ -142,6 +143,7 @@ async def global_exception_handler(request: Request, exc: Exception):
     Returns:
         JSONResponse with error details
     """
+
     request_id = str(uuid.uuid4())
     logger.error(
         "unhandled_exception",
@@ -153,12 +155,14 @@ async def global_exception_handler(request: Request, exc: Exception):
         exc_info=True,
     )
     
-    return {
-        "error": "Internal server error",
-        "status": 500,
-        "request_id": request_id,
-        "detail": str(exc) if settings.DEBUG else "An error occurred",
-    }
+    return JSONResponse(
+        status_code=500,
+        content={
+            "error": "Internal server error",
+            "status": 500,
+            "detail": str(exc) if settings.DEBUG else "An error occurred",
+        },
+    )
 
 
 if __name__ == "__main__":

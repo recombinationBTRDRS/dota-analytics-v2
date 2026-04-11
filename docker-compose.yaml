@@ -1,0 +1,176 @@
+# ============================================================================
+# Docker Compose Configuration for Local Development
+# ============================================================================
+# Usage:
+#   docker-compose up                 # Start all services
+#   docker-compose down               # Stop all services
+#   docker-compose logs -f ingestion  # View logs for specific service
+# ============================================================================
+
+version: '3.9'
+
+services:
+  # ==========================================================================
+  # POSTGRESQL DATABASE
+  # ==========================================================================
+  postgres:
+    image: postgres:15-alpine
+    container_name: dota2_postgres
+    environment:
+      POSTGRES_DB: dota2_analytics
+      POSTGRES_USER: dota2_user
+      POSTGRES_PASSWORD: dota2_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U dota2_user -d dota2_analytics"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - dota2_network
+
+  # ==========================================================================
+  # MONGODB NOSQL DATABASE
+  # ==========================================================================
+  mongodb:
+    image: mongo:6.0-alpine
+    container_name: dota2_mongodb
+    environment:
+      MONGO_INITDB_DATABASE: dota2_analytics
+      MONGO_INITDB_ROOT_USERNAME: dota2_user
+      MONGO_INITDB_ROOT_PASSWORD: dota2_password
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+      - mongodb_config:/data/configdb
+    healthcheck:
+      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - dota2_network
+    command: mongod --auth
+
+  # ==========================================================================
+  # REDIS CACHE
+  # ==========================================================================
+  redis:
+    image: redis:7-alpine
+    container_name: dota2_redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - dota2_network
+    command: redis-server --appendonly yes
+
+  # ==========================================================================
+  # DATA INGESTION SERVICE
+  # ==========================================================================
+  ingestion:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: dota2_ingestion
+    environment:
+      SERVICE_NAME: ingestion
+      SERVICE_PORT: 8001
+      DEBUG: "true"
+      LOG_LEVEL: INFO
+      
+      # OpenDota API
+      OPENDOTA_BASE_URL: https://api.opendota.com/api
+      OPENDOTA_TIMEOUT: 30
+      OPENDOTA_RETRIES: 3
+      OPENDOTA_RATE_LIMIT: 60
+      
+      # Discovery
+      DISCOVERY_LOBBY_TYPE: 7
+      DISCOVERY_MIN_RANK_TIER: 10
+      DISCOVERY_LIMIT: 100
+      DISCOVERY_INTERVAL_SEC: 300
+      
+      # MongoDB
+      MONGODB_URL: mongodb://dota2_user:dota2_password@mongodb:27017/dota2_analytics?authSource=admin
+      MONGODB_DB_NAME: dota2_analytics
+      
+      # Redis
+      REDIS_URL: redis://redis:6379
+      REDIS_DB: 0
+      
+      # Auto-rebuild
+      AUTO_REBUILD_AFTER_INGEST: "true"
+      REBUILD_BATCH_THRESHOLD: 10
+      
+      # CORS
+      CORS_ORIGINS: '["*"]'
+      CORS_CREDENTIALS: "true"
+      CORS_METHODS: '["*"]'
+      CORS_HEADERS: '["*"]'
+    
+    ports:
+      - "8001:8001"
+    
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    
+    env_file:
+      - .env
+    
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 30s
+      timeout: 10s
+      start_period: 10s
+      retries: 3
+    
+    networks:
+      - dota2_network
+    
+    restart: unless-stopped
+
+  # ==========================================================================
+  # REFERENCE DATA SERVICE (placeholder for Phase 2)
+  # ==========================================================================
+  # reference_data:
+  #   build:
+  #     context: .
+  #     dockerfile: Dockerfile
+  #   container_name: dota2_reference_data
+  #   ports:
+  #     - "8002:8002"
+  #   depends_on:
+  #     - mongodb
+  #     - postgres
+  #   networks:
+  #     - dota2_network
+
+volumes:
+  postgres_data:
+    driver: local
+  mongodb_data:
+    driver: local
+  mongodb_config:
+    driver: local
+  redis_data:
+    driver: local
+
+networks:
+  dota2_network:
+    driver: bridge

@@ -1,0 +1,186 @@
+# ================================================================================
+# 🤖 CODERABBIT CONFIGURATION (.coderabbit.yaml)
+# ================================================================================
+# Офіційна схема: https://coderabbit.ai/integrations/schema.v2.json
+# Документація: https://docs.coderabbit.ai/
+#
+# ⚠️ ВАЖЛИВО: Цей файл СТРОГО дотримується офіційної схеми CodeRabbit
+# ================================================================================
+# ИНСТРУКЦИИ КОРИСТУВАННЯ:
+# ================================================================================
+#
+# 1. ВСТАНОВЛЕННЯ CodeRabbit:
+#    - Йди на: https://github.com/apps/coderabbit-ai
+#    - Натисни "Install"
+#    - Вибери цей репозиторій
+#    - Дай дозволи на PR reviews
+#
+# 2. WORKFLOW для розробки (Git branching):
+#    
+#    a) Для КОЖНОЇ TASK створи окремий branch:
+#       git checkout develop
+#       git pull origin develop
+#       git checkout -b feat/epic-1-task-1-2-config
+#       
+#    b) КОДИШ свою task
+#    
+#    c) КОМІТИ за конвенцією:
+#       git add .
+#       git commit -m "feat(1.2): pydantic config management
+#       
+#       - Implement Settings class
+#       - Add .env support
+#       - Tests"
+#    
+#    d) PUSH branch:
+#       git push -u origin feat/epic-1-task-1-2-config
+#    
+#    e) На GitHub ВІДКРИЄТЬСЯ Pull Request
+#    
+#    f) CodeRabbit АВТОМАТИЧНО review'ить код
+#    
+#    g) ТИ дивишся коментарі CodeRabbit
+#       - Вносиш зміни якщо потрібно
+#       - Пушиш нові коміти
+#    
+#    h) Коли ВСЕ OK → натискаєш "Squash and merge"
+#
+# 3. BRANCH NAMING CONVENTION:
+#    feat/epic-N-task-N-M-description
+#    fix/brief-description
+#    docs/what-documented
+#    test/what-tested
+#    refactor/what-refactored
+#
+# 4. COMMIT MESSAGE CONVENTION:
+#    feat(EPIC.TASK): short description
+#    
+#    - Detailed change 1
+#    - Detailed change 2
+#    - Tests added
+#
+# ================================================================================
+# YAML SCHEMA (офіційна версія):
+# ================================================================================
+
+# Основні налаштування review
+reviews:
+  auto_review:
+    enabled: true
+    auto_incremental_review: true
+    auto_pause_after_reviewed_commits: 5
+    drafts: false
+
+  # Інструкції для специфічних шляхів
+  path_instructions:
+    - path: "**/*.py"
+      instructions: |
+        # Python Code Review
+        
+        Check for:
+        - ✅ Type hints on all functions
+        - ✅ Docstrings (Google style)
+        - ✅ SOLID principles
+        - ✅ No unused imports
+        - ✅ Max line length = 100
+        - ✅ Max function length = 50 lines
+        - ✅ Proper error handling
+        - ✅ Async/await usage
+        - ✅ Pydantic validation where needed
+        
+        Architecture layers:
+        - routers/ → handles HTTP
+        - services/ → business logic
+        - repositories/ → DB access
+        - db/ → connection management
+        - config.py → settings
+    
+    - path: "**/*test*.py"
+      instructions: |
+        # Python Tests Review
+        
+        Check for:
+        - ✅ Test coverage >= 75%
+        - ✅ Meaningful test names
+        - ✅ Meaningful assertions
+        - ✅ Mock external dependencies
+        - ✅ No hardcoded values
+        - ✅ Test isolation
+    
+    - path: "**/routers/**/*.py"
+      instructions: |
+        # FastAPI Routers Review
+        
+        Check for:
+        - ✅ Resource-oriented endpoints (GET /heroes, not /get-heroes)
+        - ✅ Correct HTTP methods (GET, POST, PUT, DELETE)
+        - ✅ Correct status codes (200, 201, 400, 404, 500)
+        - ✅ Response models (Pydantic)
+        - ✅ Request validation
+        - ✅ Dependency injection (Depends())
+        - ✅ Error handlers
+        - ✅ API versioning (/api/v1/*)
+    
+    - path: "Dockerfile"
+      instructions: |
+        # Docker Review
+        
+        Check for:
+        - ✅ Multi-stage builds if applicable
+        - ✅ .dockerignore present
+        - ✅ Non-root user
+        - ✅ Health check endpoint
+        - ✅ Proper layer ordering
+    
+    - path: "docker-compose.yaml"
+      instructions: |
+        # Docker Compose Review
+        
+        Check for:
+        - ✅ Service isolation
+        - ✅ Environment variables
+        - ✅ Volume mounting
+        - ✅ Network configuration
+        - ✅ Health checks
+    
+    - path: "pyproject.toml"
+      instructions: |
+        # Poetry Configuration Review
+        
+        Check for:
+        - ✅ Correct dependency groups (main vs dev)
+        - ✅ Python version constraints
+        - ✅ Build system configured
+        - ✅ Tool configurations present
+
+# Language settings
+language: python
+tone_instructions: |
+  Be constructive and educational. Point to best practices.
+  Provide examples when possible. Be encouraging.
+
+# Early access features
+early_access: true
+
+# ================================================================================
+# КІНЕЦЬ КОНФІГУРАЦІЇ
+# ================================================================================
+#
+# ВАЖЛИВО: Не додавай інші ключі крім тих що в офіційній схемі!
+# 
+# Дозволені top-level ключи тільки:
+# - reviews (та підключи)
+# - language
+# - tone_instructions
+# - early_access
+# - chat (if needed)
+# - code_generation (if needed)
+# - inheritance (if needed)
+# - knowledge_base (if needed)
+#
+# ДОКУМЕНТАЦІЯ ПРОЕКТУ:
+# • docs/DOTA2_ANALYTICS_v2_TZ.md
+# • docs/SKILL_BUILDING_GUIDELINE.md
+# • docs/ARCHITECTURE_DIAGRAMS.md
+#
+# ================================================================================

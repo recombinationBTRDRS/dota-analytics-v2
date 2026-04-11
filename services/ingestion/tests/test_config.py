@@ -137,7 +137,7 @@ class TestSettingsAutoRebuild:
     def test_default_auto_rebuild_enabled(self):
         """Test that auto-rebuild is enabled by default ."""
         settings = Settings()
-        assert settings.AUTO_REBUID_AFTER_INGEST is True
+        assert settings.AUTO_REBUILD_AFTER_INGEST is True
 
     def test_rebuild_batch_threshold(self):
         """Test rebuild batch threshold."""

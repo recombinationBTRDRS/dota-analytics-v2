@@ -1,25 +1,268 @@
-from motor.motor_asyncio import AsyncClient, AsyncIOMotorDatabase, AsyncIOMotorClient
-from typing import Optional
+"""MongoDB connection and utilities.
 
+Provides:
+- Async MongoDB client management
+- Connection pooling
+- Database initialization
+- Context managers for connections
+- Credential sanitization for logging
+"""
+
+from typing import Optional, AsyncGenerator
+from urllib.parse import urlparse
+from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorDatabase
+from app.config import get_settings
+from app.logging_config import get_logger
+
+logger = get_logger(__name__)
+
+# Global database instance
 _db_client: Optional[AsyncIOMotorClient] = None
 _db: Optional[AsyncIOMotorDatabase] = None
 
-async def init_db(connection_string: str, db_name: str) -> None:
-    """Initialize MongoDB connection"""
+
+def _sanitize_url(url: str) -> str:
+    """Remove credentials from URL for safe logging.
+    
+    Args:
+        url: MongoDB connection URL
+        
+    Returns:
+        URL with credentials redacted
+        
+    Example:
+        url = "mongodb://user:pass@localhost:27017/db"
+        safe = _sanitize_url(url)  # "mongodb://localhost:27017/db"
+    """
+    try:
+        parsed = urlparse(url)
+        
+        # Build safe netloc without credentials
+        if parsed.password:
+            # Remove username:password@ part
+            safe_netloc = f"{parsed.hostname}"
+            if parsed.port:
+                safe_netloc += f":{parsed.port}"
+        else:
+            safe_netloc = parsed.netloc
+        
+        # Reconstruct URL
+        path = f"/{parsed.path.lstrip('/')}" if parsed.path else ""
+        query = f"?{parsed.query}" if parsed.query else ""
+        
+        safe_url = f"{parsed.scheme}://{safe_netloc}{path}{query}"
+        return safe_url
+    
+    except Exception:
+        # If parsing fails, return masked version
+        return "mongodb://***"
+
+
+async def init_db() -> AsyncIOMotorDatabase:
+    """Initialize MongoDB connection.
+    
+    Creates async client and returns database instance.
+    
+    Returns:
+        AsyncIOMotorDatabase: MongoDB database instance
+        
+    Raises:
+        ConnectionError: If connection fails
+        
+    Example:
+        db = await init_db()
+        matches = await db.matches.find_one({"_id": 123})
+    """
     global _db_client, _db
-    _db_client = AsyncIOMotorClient(connection_string)
-    _db = _db_client[db_name]
+    
+    settings = get_settings()
+    
+    try:
+        safe_url = _sanitize_url(settings.MONGODB_URL)
+        logger.info(
+            "mongodb_connection_starting",
+            url=safe_url,
+            db_name=settings.MONGODB_DB_NAME,
+        )
+        
+        # Create async client
+        _db_client = AsyncIOMotorClient(
+            settings.MONGODB_URL,
+            serverSelectionTimeoutMS=5000,
+            connectTimeoutMS=10000,
+        )
+        
+        # Test connection
+        await _db_client.admin.command('ping')
+        logger.info("mongodb_connection_successful")
+        
+        # Get database
+        _db = _db_client[settings.MONGODB_DB_NAME]
+        logger.info("mongodb_database_selected", db_name=settings.MONGODB_DB_NAME)
+        
+        return _db
+    
+    except Exception as exc:
+        logger.error(
+            "mongodb_connection_failed",
+            error=str(exc),
+            error_type=type(exc).__name__,
+            exc_info=True,
+        )
+        raise ConnectionError(f"Failed to connect to MongoDB: {exc}") from exc
 
 
 async def close_db() -> None:
-    """Close MongoDB connection"""
-    global _db_client
-    if _db_client:
-        _db_client.close()
+    """Close MongoDB connection gracefully.
     
+    Closes async client and clears cached references.
+    
+    Example:
+        await close_db()
+    """
+    global _db_client, _db
+    
+    if _db_client:
+        try:
+            logger.info("mongodb_connection_closing")
+            _db_client.close()
+            _db_client = None
+            _db = None
+            logger.info("mongodb_connection_closed")
+        except Exception as exc:
+            logger.error(
+                "mongodb_close_failed",
+                error=str(exc),
+                exc_info=True,
+            )
+            # Ensure cleanup even on error
+            _db_client = None
+            _db = None
+
 
 def get_db() -> AsyncIOMotorDatabase:
-    """Get database instance"""
+    """Get database instance (must be initialized first).
+    
+    Returns:
+        AsyncIOMotorDatabase: MongoDB database instance
+        
+    Raises:
+        RuntimeError: If database not initialized
+        
+    Example:
+        db = get_db()
+    """
     if _db is None:
         raise RuntimeError("Database not initialized. Call init_db() first.")
     return _db
+
+
+async def get_db_context() -> AsyncGenerator[AsyncIOMotorDatabase, None]:
+    """Get database as async context manager.
+    
+    Yields:
+        AsyncIOMotorDatabase: MongoDB database instance
+        
+    Example:
+        async with get_db_context() as db:
+            await db.matches.insert_one({...})
+    """
+    if _db is None:
+        raise RuntimeError("Database not initialized. Call init_db() first.")
+    yield _db
+
+
+async def ensure_indexes() -> None:
+    """Ensure all database indexes are created.
+    
+    Creates indexes for optimal query performance.
+    
+    Example:
+        await ensure_indexes()
+    """
+    db = get_db()
+    
+    try:
+        logger.info("mongodb_indexes_creation_starting")
+        
+        # Matches collection indexes
+        await db.matches.create_index("match_id", unique=True)
+        await db.matches.create_index("start_time")
+        await db.matches.create_index("patch")
+        await db.matches.create_index("ingested_at")
+        
+        # Ingestion log indexes
+        await db.ingestion_log.create_index("_id", unique=True)
+        await db.ingestion_log.create_index("status")
+        await db.ingestion_log.create_index("last_attempt")
+        
+        logger.info("mongodb_indexes_creation_completed")
+    
+    except Exception as exc:
+        logger.error(
+            "mongodb_indexes_creation_failed",
+            error=str(exc),
+            exc_info=True,
+        )
+        raise
+
+
+async def validate_collection_schemas() -> None:
+    """Validate collection schemas.
+    
+    Ensures collections have proper validators.
+    
+    Example:
+        await validate_collection_schemas()
+    """
+    db = get_db()
+    
+    try:
+        logger.info("mongodb_schema_validation_starting")
+        
+        # Matches collection validator
+        matches_validator = {
+            "$jsonSchema": {
+                "bsonType": "object",
+                "required": ["match_id", "duration"],
+                "properties": {
+                    "match_id": {"bsonType": "int"},
+                    "duration": {"bsonType": "int"},
+                    "radiant_win": {"bsonType": "bool"},
+                    "start_time": {"bsonType": "int"},
+                    "patch": {"bsonType": "string"},
+                }
+            }
+        }
+        
+        # Create validator - only treat collection-not-found as benign
+        try:
+            await db.command(
+                "collMod",
+                "matches",
+                validator=matches_validator
+            )
+            logger.info("matches_schema_validated")
+        except Exception as exc:
+            error_str = str(exc).lower()
+            # Only ignore "namespace not found" errors
+            if "namespace" in error_str or "not found" in error_str:
+                logger.debug("matches_collection_not_exists_yet", error=str(exc))
+            else:
+                # Re-raise other errors (auth, invalid validator, server errors)
+                logger.error(
+                    "matches_schema_validation_error",
+                    error=str(exc),
+                    exc_info=True,
+                )
+                raise
+        
+        logger.info("mongodb_schema_validation_completed")
+    
+    except Exception as exc:
+        logger.error(
+            "mongodb_schema_validation_failed",
+            error=str(exc),
+            exc_info=True,
+        )
+        raise

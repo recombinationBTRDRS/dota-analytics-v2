@@ -1,32 +1,36 @@
-"""Configuration management using pudantic-settings.
+"""Configuration management using pydantic-settings.
 
 This module provides centralized configuration management with:
-- Enviroment variable support
+- Environment variable support
 - .env file loading
 - Type validation (Pydantic)
 - Dependency injection for FastAPI
 """
 
-from typing import Optional
-from pydantic import Field, field_validator
+from pydantic import Field, field_validator, ConfigDict
 from pydantic_settings import BaseSettings
 from functools import lru_cache
 
 
 class Settings(BaseSettings):
-    """Application settings from enviroment variables and .env file".
+    """Application settings from environment variables and .env file.
     
-    Enviroment variables take precedence over .env file values.
+    Environment variables take precedence over .env file values.
     """
+    
+    model_config = ConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        case_sensitive=True,
+    )
 
     # ========================================================================
     # SERVICE CONFIGURATION
     # ========================================================================
     SERVICE_NAME: str = Field(default="ingestion", description="Service name")
-    SERVICE_PORT: int = Field(default= 8001, description="Service port") 
+    SERVICE_PORT: int = Field(default=8001, description="Service port")
     DEBUG: bool = Field(default=True, description="Debug mode")
     LOG_LEVEL: str = Field(default="INFO", description="Logging level")
-
 
     # ========================================================================
     # OPENDOTA API CONFIGURATION
@@ -42,13 +46,11 @@ class Settings(BaseSettings):
     OPENDOTA_RETRIES: int = Field(
         default=3,
         description="Number of retry attempts for failed requests"
-    ) 
+    )
     OPENDOTA_RATE_LIMIT: int = Field(
         default=60,
         description="Rate limit in requests per minute"
     )
-
-
 
     # ========================================================================
     # MATCH DISCOVERY CONFIGURATION
@@ -91,19 +93,19 @@ class Settings(BaseSettings):
     )
     REDIS_DB: int = Field(
         default=0,
-        description="Redis datbase number"
+        description="Redis database number"
     )
 
     # ========================================================================
     # AUTO-REBUILD CONFIGURATION
     # ========================================================================
-    AUTO_REBUID_AFTER_INGEST: bool = Field(
+    AUTO_REBUILD_AFTER_INGEST: bool = Field(
         default=True,
         description="Automatically rebuild pre-computed stats after ingestion"
     )
     REBUILD_BATCH_THRESHOLD: int = Field(
         default=10,
-        description="Number of mathes to trigger rebuild"
+        description="Number of matches to trigger rebuild"
     )
 
     # ========================================================================
@@ -134,49 +136,54 @@ class Settings(BaseSettings):
         description="CORS allowed headers"
     )
 
-
-    class Config:
-        """Pydantic configuration"""
-        env_file = ".env"
-        env_file_encoding = "utf-8"
-        case_sensitive = True
-    
-    @field_validator("OPENDOTA_TIMEOUT","DISCOVERY_INTERVAL_SEC")
-    def validate_positive_nubers(cls, v: int) -> int:
+    @field_validator("OPENDOTA_TIMEOUT", "DISCOVERY_INTERVAL_SEC")
+    @classmethod
+    def validate_positive_numbers(cls, v: int) -> int:
         """Ensure timeout and interval are positive."""
         if v <= 0:
             raise ValueError("Must be a positive number")
         return v
-    
+
     @field_validator("DISCOVERY_LIMIT", "REBUILD_BATCH_THRESHOLD")
-    def validate_positive_integers(cls, v:int) -> int:
+    @classmethod
+    def validate_positive_integers(cls, v: int) -> int:
         """Ensure limits are positive integers."""
         if v <= 0:
             raise ValueError("Must be a positive integer")
         return v
 
     @field_validator("LOG_LEVEL")
+    @classmethod
     def validate_log_level(cls, v: str) -> str:
         """Validate log level is valid."""
         valid_levels = {"DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"}
         if v.upper() not in valid_levels:
             raise ValueError(f"Log level must be one of {valid_levels}")
         return v.upper()
-    
-    
+
+    @field_validator("LOG_FORMAT")
+    @classmethod
+    def validate_log_format(cls, v: str) -> str:
+        """Validate log format is supported."""
+        valid_formats = {"json", "text"}
+        if v.lower() not in valid_formats:
+            raise ValueError(f"Log format must be one of {valid_formats}")
+        return v.lower()
+
+
 @lru_cache()
 def get_settings() -> Settings:
     """Get cached settings instance (singleton pattern).
 
     Returns:
-        Settings: Application settings instanse
+        Settings: Application settings instance
 
     Example:
         settings = get_settings()
-        print(settings.SERVICE_PORT) # 8001
-        
+        print(settings.SERVICE_PORT)  # 8001
     """
     return Settings()
+
 
 # For FastAPI Depends
 settings = get_settings()
